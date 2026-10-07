@@ -1,8 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildDenormalizedRefsScriptParams, buildLocalMustFilter, buildReplaceScriptParams, isTransitoryError, prepareElementForIndexing } from '../../../src/database/engine';
+import {
+  buildDenormalizedRefsScriptParams,
+  buildLocalMustFilter,
+  buildReplaceScriptParams,
+  isImpactedRole,
+  isImpactedTypeAndSide,
+  isTransitoryError,
+  prepareElementForIndexing,
+  ROLE_FROM,
+  ROLE_TO,
+} from '../../../src/database/engine';
 import { RELATION_CREATED_BY, RELATION_OBJECT, RELATION_OBJECT_MARKING } from '../../../src/schema/stixRefRelationship';
 import { RELATION_IN_PIR } from '../../../src/schema/internalRelationship';
 import * as engineConfig from '../../../src/database/engine-config';
+import { STIX_SIGHTING_RELATIONSHIP } from '../../../src/schema/stixSightingRelationship';
+import { ENTITY_TYPE_CONTAINER_GROUPING } from '../../../src/modules/grouping/grouping-types';
+import { ENTITY_TYPE_CONTAINER_REPORT } from '../../../src/schema/stixDomainObject';
+import { ENTITY_TYPE_IDENTITY_ORGANIZATION } from '../../../src/modules/organization/organization-types';
+import { ENTITY_IPV4_ADDR } from '../../../src/schema/stixCyberObservable';
 
 describe('prepareElementForIndexing testing', () => {
   it('should base trim applied', async () => {
@@ -456,5 +471,21 @@ describe('buildDenormalizedRefsScriptParams testing', () => {
     expect(params.appended_refs).toEqual([]);
     expect(params.distinct_refs).toEqual([]);
     expect(params.timestamp_fields).toEqual([]);
+  });
+});
+
+describe('isImpactedTypeAndSide / isImpactedRole testing', () => {
+  it('should not impact a container on the to side of a sighting', () => {
+    expect(isImpactedTypeAndSide(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_CONTAINER_GROUPING, ROLE_TO)).toBe(false);
+    expect(isImpactedTypeAndSide(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_CONTAINER_REPORT, ROLE_TO)).toBe(false);
+    expect(isImpactedRole(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_CONTAINER_GROUPING, `${STIX_SIGHTING_RELATIONSHIP}_${ROLE_TO}`)).toBe(false);
+  });
+  it('should still impact the sighted element on the from side of a sighting to a container', () => {
+    expect(isImpactedTypeAndSide(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_CONTAINER_GROUPING, ROLE_FROM)).toBe(true);
+    expect(isImpactedRole(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_CONTAINER_GROUPING, `${STIX_SIGHTING_RELATIONSHIP}_${ROLE_FROM}`)).toBe(true);
+  });
+  it('should still impact both sides of a sighting to a non container', () => {
+    expect(isImpactedTypeAndSide(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_IDENTITY_ORGANIZATION, ROLE_TO)).toBe(true);
+    expect(isImpactedTypeAndSide(STIX_SIGHTING_RELATIONSHIP, ENTITY_IPV4_ADDR, ENTITY_TYPE_IDENTITY_ORGANIZATION, ROLE_FROM)).toBe(true);
   });
 });

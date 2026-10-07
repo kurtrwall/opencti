@@ -99,6 +99,7 @@ import {
   ENTITY_TYPE_LOCATION_COUNTRY,
   ENTITY_TYPE_LOCATION_REGION,
   isStixDomainObject,
+  isStixDomainObjectContainer,
   STIX_ORGANIZATIONS_RESTRICTED,
   STIX_ORGANIZATIONS_UNRESTRICTED,
 } from '../schema/stixDomainObject';
@@ -260,6 +261,13 @@ export const isSpecialNonImpactedCases = (relationshipType: string, fromType: st
   // This is to avoid having too big region entities
   // As a consequence, no entities view in city / knowledge / regions,
   if (side === ROLE_TO && relationshipType === RELATION_LOCATED_AT && UNSUPPORTED_LOCATED_AT.includes(fromType) && LOCATED_AT_CLEANED.includes(toType)) {
+    return true;
+  }
+  // This relationship is a sighting where the "sighted in" side is a container (Grouping, Report, Case, etc.)
+  // This is to avoid containers accumulating one id per sighted element, forcing a lock and a full rewrite
+  // of the container document for every new sighting (e.g. a Grouping with a summary sighting per object).
+  // As a consequence, no sightedBy / regardingOf sighting filtering on the container side.
+  if (side === ROLE_TO && isStixSightingRelationship(relationshipType) && isStixDomainObjectContainer(toType)) {
     return true;
   }
   // Rel on the "to" side with targets from any threat to region / country / sector
